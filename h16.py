@@ -1,4 +1,4 @@
-def pkcs7_pad(data: bytearray, block_size: int) -> bytearray:
+def pkcs7_pad(data: bytearray, block_size: int) -> (bytearray, int):
     """
     Applies PKCS#7 padding to the data to make its length a multiple of block_size.
 
@@ -9,7 +9,9 @@ def pkcs7_pad(data: bytearray, block_size: int) -> bytearray:
     Returns:
         bytearray: The padded data.
     """
-    padding_length = block_size - (len(data) % (block_size + 1))
+    padding_length = block_size - (len(data) % (block_size))
+    print('padding_length: ', padding_length)
+    # if padding_length
     padding = bytes([padding_length] * padding_length)
     return data + padding, padding_length
 
@@ -66,9 +68,32 @@ def h16(input_str: str) -> str:
             hash_array[bit + i] = block_units[i]
             hash_array[32 + i] = block_units[i] ^ (hash_array[i] & i) ^ hash_array[i]
             counter += 1
-
         t = 0
         for i in range(16):
+            for j in range(48):
+                hash_array[j] ^= CHECKBOX[t]
+                t = hash_array[j] & 0xff
+            t = (t + i) & 0xff
+
+        # Now the checks part
+        t = checks[15] & 0xff
+        for i in range(bit):
+            checks[i] ^= CHECKBOX[(block_units[i] ^ t) & 0xff]
+            t = checks[i] & 0xff
+
+    for i in range(bit):
+        data.append(checks[i])
+
+    while len(data) >= bit:
+        block_units = list(data[:bit])
+        del data[:bit]
+
+        for i in range(bit):
+            hash_array[bit + i] = block_units[i]
+            hash_array[32 + i] = block_units[i] ^ (hash_array[i] & i) ^ hash_array[i]
+
+        t = 0
+        for i in range(8):
             for j in range(48):
                 hash_array[j] ^= CHECKBOX[t]
                 t = hash_array[j] & 0xff
